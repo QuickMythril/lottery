@@ -4,12 +4,12 @@
     <groupId>org.qortal</groupId>
     <artifactId>qortal-lottery</artifactId>
     <version>1.0.0</version>
-    <packaging>zip</packaging>
+    <packaging>jar</packaging>
     <properties>
         <skipTests>true</skipTests>
         <bouncycastle.version>1.64</bouncycastle.version>
         <build.timestamp>${maven.build.timestamp}</build.timestamp>
-        <ciyam-at.version>1.3.8</ciyam-at.version>
+        <ciyam-at.version>1.4.0</ciyam-at.version>
         <commons-text.version>1.8</commons-text.version>
         <commons-io.version>2.6</commons-io.version>
         <commons-compress.version>1.21</commons-compress.version>
@@ -100,41 +100,41 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.2.0</version>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <addDefaultEntries>false</addDefaultEntries>
-                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-                        </manifest>
-                        <manifestEntries>
-                            <Last-Commit-Id>${git.commit.id.full}</Last-Commit-Id>
-                            <Last-Commit-Time>${git.commit.time}</Last-Commit-Time>
-                            <Reproducible-Build>true</Reproducible-Build>
-                        </manifestEntries>
-                    </archive>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>io.github.zlika</groupId>
-                <artifactId>reproducible-build-maven-plugin</artifactId>
-                <version>0.11</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <id>strip-jar</id>
-                        <goals>
-                            <goal>strip-jar</goal>
-                        </goals>
-                        <configuration>
-                            <zipDateTime>${git.commit.time}</zipDateTime>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.apache.maven.plugins</groupId>-->
+<!--                <artifactId>maven-jar-plugin</artifactId>-->
+<!--                <version>3.2.0</version>-->
+<!--                <configuration>-->
+<!--                    <archive>-->
+<!--                        <manifest>-->
+<!--                            <addDefaultEntries>false</addDefaultEntries>-->
+<!--                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>-->
+<!--                        </manifest>-->
+<!--                        <manifestEntries>-->
+<!--                            <Last-Commit-Id>${git.commit.id.full}</Last-Commit-Id>-->
+<!--                            <Last-Commit-Time>${git.commit.time}</Last-Commit-Time>-->
+<!--                            <Reproducible-Build>true</Reproducible-Build>-->
+<!--                        </manifestEntries>-->
+<!--                    </archive>-->
+<!--                </configuration>-->
+<!--            </plugin>-->
+<!--            <plugin>-->
+<!--                <groupId>io.github.zlika</groupId>-->
+<!--                <artifactId>reproducible-build-maven-plugin</artifactId>-->
+<!--                <version>0.11</version>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <phase>package</phase>-->
+<!--                        <id>strip-jar</id>-->
+<!--                        <goals>-->
+<!--                            <goal>strip-jar</goal>-->
+<!--                        </goals>-->
+<!--                        <configuration>-->
+<!--                            <zipDateTime>${git.commit.time}</zipDateTime>-->
+<!--                        </configuration>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>

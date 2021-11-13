@@ -9,9 +9,9 @@ import static org.ciyam.at.OpCode.calcOffset;
 /**
  * Design goals:
  *  1. Sleep for set period to avoid extra DB state records
- *  2. Enforce minimum entry price (excess ignored, or even welcomed)
+ *  2. Enforce minimum entry price (below minimum payments simply ignored)
  *  3. Multiple entries by same account should not increase chances of winning
- *  4. Entries after reawakening are not considered although funds are added to prize
+ *  4. Entries after reawakening are not considered (although funds are added to prize)
  *  5. No entries cause AT funds to be returned to creator
  *  6. Winner should not be known before reawakening cutoff!
  *
@@ -60,10 +60,10 @@ public class Lottery {
      * @param minimumAmount     Minimum amount of QORT for valid entry
      */
     public static byte[] buildQortalAT(int sleepMinutes, long minimumAmount) {
-        if (sleepMinutes < 10 || sleepMinutes > 60 * 24 * 30)
+        if (sleepMinutes < 10 || sleepMinutes > 30 * 24 * 60)
             throw new IllegalArgumentException("Sleep period should be between 10 minutes and 1 month");
 
-        if (minimumAmount < 1000000L || minimumAmount > 100000000000L)
+        if (minimumAmount < 100_0000L || minimumAmount > 1000_0000_0000L)
             throw new IllegalArgumentException("Minimum amount should be between 0.01 QORT and 1000 QORT");
 
         // Labels for data segment addresses
@@ -73,18 +73,15 @@ public class Lottery {
         final int addrMinimumAmount = addrCounter++;
 
         final int addrSleepUntilHeight = addrCounter++;
-        final int addrCurrentBlockTimestamp = addrCounter++;
 
         final int addrWinningValue = addrCounter; addrCounter += 4;
-        final int addrWinningValuePointer = addrCounter++;
 
         /*
          * Values before addrCurrentAddress must not change once we start checking for winners.
-         * We SHA256 bytes in data segment from zero to addrCurrentAddressPointer (inclusive) for each entry.
+         * We SHA256 bytes in data segment from zero to addrCurrentAddress (inclusive) for each entry.
          * The same 'address' must produce the same hash!
          */
         final int addrCurrentAddress = addrCounter; addrCounter += 4;
-        final int addrCurrentAddressPointer = addrCounter++;
         final int addrCurrentAddressByteLength = addrCounter++;
 
         final int addrLastTxnTimestamp = addrCounter++;
@@ -96,18 +93,9 @@ public class Lottery {
         final int addrNumberOfEntries = addrCounter++;
 
         final int addrCurrentDistance = addrCounter; addrCounter += 4;
-        final int addrCurrentDistancePointer = addrCounter++;
-
-        final int addrTopBitShift = addrCounter++;
-        final int addrAllButTopBitMask = addrCounter++;
-        final int addrCurrentDistanceTemp = addrCounter++;
-        final int addrBestDistanceTemp = addrCounter++;
 
         final int addrBestDistance = addrCounter; addrCounter += 4;
-        final int addrBestDistancePointer = addrCounter++;
-
         final int addrBestAddress = addrCounter; addrCounter += 4;
-        final int addrBestAddressPointer = addrCounter++;
 
         final int addrZero = addrCounter++;
         final int addrDataSegmentByteLength = addrCounter++;
@@ -123,31 +111,13 @@ public class Lottery {
         dataByteBuffer.position(addrMinimumAmount * MachineState.VALUE_SIZE);
         dataByteBuffer.putLong(minimumAmount);
 
-        // Winning value pointer
-        dataByteBuffer.position(addrWinningValuePointer * MachineState.VALUE_SIZE);
-        dataByteBuffer.putLong(addrWinningValue);
-
-        // Current address pointer
-        dataByteBuffer.position(addrCurrentAddressPointer * MachineState.VALUE_SIZE);
-        dataByteBuffer.putLong(addrCurrentAddress);
-
-        // Number of data segment bytes from start to include addrCurrentAddressPointer
+        // Number of data segment bytes from start to include addrCurrentAddress
         dataByteBuffer.position(addrCurrentAddressByteLength * MachineState.VALUE_SIZE);
         dataByteBuffer.putLong(addrCurrentAddressByteLength);
 
         // PAYMENT transaction type
         dataByteBuffer.position(addrPaymentTxnType * MachineState.VALUE_SIZE);
         dataByteBuffer.putLong(API.ATTransactionType.PAYMENT.value);
-
-        // Current distance pointer
-        dataByteBuffer.position(addrCurrentDistancePointer * MachineState.VALUE_SIZE);
-        dataByteBuffer.putLong(addrCurrentDistance);
-
-        // Bit masks
-        dataByteBuffer.position(addrTopBitShift * MachineState.VALUE_SIZE);
-        dataByteBuffer.putLong(63L);
-        dataByteBuffer.position(addrAllButTopBitMask * MachineState.VALUE_SIZE);
-        dataByteBuffer.putLong(0x7FFFFFFFFFFFFFFFL);
 
         // Best distance (initialized to MAX UNSIGNED)
         dataByteBuffer.position(addrBestDistance * MachineState.VALUE_SIZE);
@@ -156,25 +126,15 @@ public class Lottery {
         dataByteBuffer.putLong(0xFFFFFFFFFFFFFFFFL);
         dataByteBuffer.putLong(0xFFFFFFFFFFFFFFFFL);
 
-        // Best distance pointer
-        dataByteBuffer.position(addrBestDistancePointer * MachineState.VALUE_SIZE);
-        dataByteBuffer.putLong(addrBestDistance);
-
-        // Best address pointer
-        dataByteBuffer.position(addrBestAddressPointer * MachineState.VALUE_SIZE);
-        dataByteBuffer.putLong(addrBestAddress);
-
         // Data segment byte length (for SHA256)
         dataByteBuffer.position(addrDataSegmentByteLength * MachineState.VALUE_SIZE);
         dataByteBuffer.putLong(addrCounter);
 
         // Code labels
-        Integer labelDoneSleeping = null;
         Integer labelTxnLoop = null;
         Integer labelCheckTxn = null;
         Integer labelCheckTxn2 = null;
-        Integer labelWorseDistance = null;
-        Integer labelBetterDistance = null;
+        Integer labelNewWinner = null;
         Integer labelPayout = null;
 
         ByteBuffer codeByteBuffer = ByteBuffer.allocate(768);
@@ -191,43 +151,38 @@ public class Lottery {
 
                 // Load B register with AT creator's address so we can save it into addrBestAddress1-4
                 codeByteBuffer.put(OpCode.EXT_FUN.compile(FunctionCode.PUT_CREATOR_INTO_B));
-                codeByteBuffer.put(OpCode.EXT_FUN_DAT.compile(FunctionCode.GET_B_IND, addrBestAddressPointer));
+                codeByteBuffer.put(OpCode.EXT_FUN_VAL.compile(FunctionCode.GET_B_DAT, addrBestAddress));
 
                 /*
-                 * This is nasty!
-                 * We want to sleep until a certain height, and SLP_DAT expects an integer block height.
-                 * However, we can only fetch current block 'timestamp' which has block height in upper 32 bits.
-                 * So we have to shift-right to extract block height.
-                 * Even worse, there's no SHR_IMD so we have to store the shift amount in another data field!
+                 * We want to sleep for a while.
+                 *
+                 * We could use SLP_VAL but different sleep periods would produce different code hashes,
+                 * which would make identifying similar lottery ATs more difficult.
+                 *
+                 * Instead we add sleepMinutes (as block count) to current block height,
+                 * which is in the upper 32 bits of current block 'timestamp',
+                 * so we perform a shift-right to extract.
                  */
                 // Save current block 'timestamp' into addrSleepUntilHeight
                 codeByteBuffer.put(OpCode.EXT_FUN_RET.compile(FunctionCode.GET_BLOCK_TIMESTAMP, addrSleepUntilHeight));
+                // Shift-right to convert 'timestamp' to block height
+                codeByteBuffer.put(OpCode.SHR_VAL.compile(addrSleepUntilHeight, 32L));
                 // Add number of minutes to sleep (assuming roughly 1 block per minute)
-                codeByteBuffer.put(OpCode.EXT_FUN_RET_DAT_2.compile(FunctionCode.ADD_MINUTES_TO_TIMESTAMP, addrSleepUntilHeight, addrSleepUntilHeight, addrSleepMinutes));
+                codeByteBuffer.put(OpCode.ADD_DAT.compile(addrSleepUntilHeight, addrSleepMinutes));
 
-                /* Sleeping loop */
-
-                // Restart after this opcode
-                codeByteBuffer.put(OpCode.SET_PCS.compile());
-
-                // Save current block 'timestamp' into addrCurrentBlockTimestamp
-                codeByteBuffer.put(OpCode.EXT_FUN_RET.compile(FunctionCode.GET_BLOCK_TIMESTAMP, addrCurrentBlockTimestamp));
-                // Not slept enough?
-                codeByteBuffer.put(OpCode.BGE_DAT.compile(addrCurrentBlockTimestamp, addrSleepUntilHeight, calcOffset(codeByteBuffer, labelDoneSleeping)));
-                // Nope: wait for next block (restarts at PCS, set above)
-                codeByteBuffer.put(OpCode.STP_IMD.compile());
+                /* Sleep */
+                codeByteBuffer.put(OpCode.SLP_DAT.compile(addrSleepUntilHeight));
 
                 /* Done sleeping */
-                labelDoneSleeping = codeByteBuffer.position();
 
                 // Generate winning value
                 codeByteBuffer.put(OpCode.EXT_FUN.compile(FunctionCode.PUT_PREVIOUS_BLOCK_HASH_INTO_A));
                 // Save block hash into addrWinningValue1-4
-                codeByteBuffer.put(OpCode.EXT_FUN_DAT.compile(FunctionCode.GET_A_IND, addrWinningValuePointer));
+                codeByteBuffer.put(OpCode.EXT_FUN_VAL.compile(FunctionCode.GET_A_DAT, addrWinningValue));
                 // Now SHA256 all data segment from start to finish. Hash will be in B
                 codeByteBuffer.put(OpCode.EXT_FUN_DAT_2.compile(FunctionCode.SHA256_INTO_B, addrZero, addrDataSegmentByteLength));
                 // Save SHA256 hash into addrWinningvalue1-4
-                codeByteBuffer.put(OpCode.EXT_FUN_DAT.compile(FunctionCode.GET_B_IND, addrWinningValuePointer));
+                codeByteBuffer.put(OpCode.EXT_FUN_VAL.compile(FunctionCode.GET_B_DAT, addrWinningValue));
 
                 /* Transaction processing loop */
 
@@ -277,91 +232,40 @@ public class Lottery {
                 // Extract sender address from transaction into B register
                 codeByteBuffer.put(OpCode.EXT_FUN.compile(FunctionCode.PUT_ADDRESS_FROM_TX_IN_A_INTO_B));
                 // Save sender address
-                codeByteBuffer.put(OpCode.EXT_FUN_DAT.compile(FunctionCode.GET_B_IND, addrCurrentAddressPointer));
+                codeByteBuffer.put(OpCode.EXT_FUN_VAL.compile(FunctionCode.GET_B_DAT, addrCurrentAddress));
                 // SHA256 to spread sender's chances across entire 256 bits
                 codeByteBuffer.put(OpCode.EXT_FUN_DAT_2.compile(FunctionCode.SHA256_INTO_B, addrZero, addrCurrentAddressByteLength));
 
                 // Subtract sender's value from winning value as distance
-                codeByteBuffer.put(OpCode.EXT_FUN_DAT.compile(FunctionCode.GET_B_IND, addrCurrentDistancePointer));
+                codeByteBuffer.put(OpCode.EXT_FUN_VAL.compile(FunctionCode.GET_B_DAT, addrCurrentDistance));
                 codeByteBuffer.put(OpCode.SUB_DAT.compile(addrCurrentDistance + 0, addrWinningValue + 0));
                 codeByteBuffer.put(OpCode.SUB_DAT.compile(addrCurrentDistance + 1, addrWinningValue + 1));
                 codeByteBuffer.put(OpCode.SUB_DAT.compile(addrCurrentDistance + 2, addrWinningValue + 2));
                 codeByteBuffer.put(OpCode.SUB_DAT.compile(addrCurrentDistance + 3, addrWinningValue + 3));
 
+                // Copy current entry's distance into A
+                codeByteBuffer.put(OpCode.EXT_FUN_VAL.compile(FunctionCode.SET_A_DAT, addrCurrentDistance));
+
+                // Copy best distance into B
+                codeByteBuffer.put(OpCode.EXT_FUN_VAL.compile(FunctionCode.SET_B_DAT, addrBestDistance));
+
                 // Unsigned comparison to see if this distance is less than best distance
+                codeByteBuffer.put(OpCode.EXT_FUN_RET.compile(FunctionCode.UNSIGNED_COMPARE_A_WITH_B, addrResult));
 
-                /*
-                 * For each of the four longs:
-                 *  Compare most significant bit first
-                 *      If best's bit is 0 and current's is 1 then current is worse
-                 *      If best's bit is 1 and current's is 0 then current is better
-                 *  Otherwise, compare remaining bits as normal after zeroing top bit
-                 */
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrBestDistanceTemp, addrBestDistance + 0));
-                codeByteBuffer.put(OpCode.SHR_DAT.compile(addrBestDistanceTemp, addrTopBitShift));
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrCurrentDistanceTemp, addrCurrentDistance + 0));
-                codeByteBuffer.put(OpCode.SHR_DAT.compile(addrCurrentDistanceTemp, addrTopBitShift));
-                codeByteBuffer.put(OpCode.BLT_DAT.compile(addrBestDistanceTemp, addrCurrentDistanceTemp, calcOffset(codeByteBuffer, labelWorseDistance)));
-                codeByteBuffer.put(OpCode.BGT_DAT.compile(addrBestDistanceTemp, addrCurrentDistanceTemp, calcOffset(codeByteBuffer, labelBetterDistance)));
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrBestDistanceTemp, addrBestDistance + 0));
-                codeByteBuffer.put(OpCode.AND_DAT.compile(addrBestDistanceTemp, addrAllButTopBitMask));
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrCurrentDistanceTemp, addrCurrentDistance + 0));
-                codeByteBuffer.put(OpCode.AND_DAT.compile(addrCurrentDistanceTemp, addrAllButTopBitMask));
-                codeByteBuffer.put(OpCode.BLT_DAT.compile(addrBestDistanceTemp, addrCurrentDistanceTemp, calcOffset(codeByteBuffer, labelWorseDistance)));
-                codeByteBuffer.put(OpCode.BGT_DAT.compile(addrBestDistanceTemp, addrCurrentDistanceTemp, calcOffset(codeByteBuffer, labelBetterDistance)));
-                // fall-through if equal
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrBestDistanceTemp, addrBestDistance + 1));
-                codeByteBuffer.put(OpCode.SHR_DAT.compile(addrBestDistanceTemp, addrTopBitShift));
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrCurrentDistanceTemp, addrCurrentDistance + 1));
-                codeByteBuffer.put(OpCode.SHR_DAT.compile(addrCurrentDistanceTemp, addrTopBitShift));
-                codeByteBuffer.put(OpCode.BLT_DAT.compile(addrBestDistanceTemp, addrCurrentDistanceTemp, calcOffset(codeByteBuffer, labelWorseDistance)));
-                codeByteBuffer.put(OpCode.BGT_DAT.compile(addrBestDistanceTemp, addrCurrentDistanceTemp, calcOffset(codeByteBuffer, labelBetterDistance)));
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrBestDistanceTemp, addrBestDistance + 1));
-                codeByteBuffer.put(OpCode.AND_DAT.compile(addrBestDistanceTemp, addrAllButTopBitMask));
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrCurrentDistanceTemp, addrCurrentDistance + 1));
-                codeByteBuffer.put(OpCode.AND_DAT.compile(addrCurrentDistanceTemp, addrAllButTopBitMask));
-                codeByteBuffer.put(OpCode.BLT_DAT.compile(addrBestDistanceTemp, addrCurrentDistanceTemp, calcOffset(codeByteBuffer, labelWorseDistance)));
-                codeByteBuffer.put(OpCode.BGT_DAT.compile(addrBestDistanceTemp, addrCurrentDistanceTemp, calcOffset(codeByteBuffer, labelBetterDistance)));
-                // fall-through if equal
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrBestDistanceTemp, addrBestDistance + 2));
-                codeByteBuffer.put(OpCode.SHR_DAT.compile(addrBestDistanceTemp, addrTopBitShift));
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrCurrentDistanceTemp, addrCurrentDistance + 2));
-                codeByteBuffer.put(OpCode.SHR_DAT.compile(addrCurrentDistanceTemp, addrTopBitShift));
-                codeByteBuffer.put(OpCode.BLT_DAT.compile(addrBestDistanceTemp, addrCurrentDistanceTemp, calcOffset(codeByteBuffer, labelWorseDistance)));
-                codeByteBuffer.put(OpCode.BGT_DAT.compile(addrBestDistanceTemp, addrCurrentDistanceTemp, calcOffset(codeByteBuffer, labelBetterDistance)));
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrBestDistanceTemp, addrBestDistance + 2));
-                codeByteBuffer.put(OpCode.AND_DAT.compile(addrBestDistanceTemp, addrAllButTopBitMask));
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrCurrentDistanceTemp, addrCurrentDistance + 2));
-                codeByteBuffer.put(OpCode.AND_DAT.compile(addrCurrentDistanceTemp, addrAllButTopBitMask));
-                codeByteBuffer.put(OpCode.BLT_DAT.compile(addrBestDistanceTemp, addrCurrentDistanceTemp, calcOffset(codeByteBuffer, labelWorseDistance)));
-                codeByteBuffer.put(OpCode.BGT_DAT.compile(addrBestDistanceTemp, addrCurrentDistanceTemp, calcOffset(codeByteBuffer, labelBetterDistance)));
-                // fall-through if equal
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrBestDistanceTemp, addrBestDistance + 3));
-                codeByteBuffer.put(OpCode.SHR_DAT.compile(addrBestDistanceTemp, addrTopBitShift));
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrCurrentDistanceTemp, addrCurrentDistance + 3));
-                codeByteBuffer.put(OpCode.SHR_DAT.compile(addrCurrentDistanceTemp, addrTopBitShift));
-                codeByteBuffer.put(OpCode.BLT_DAT.compile(addrBestDistanceTemp, addrCurrentDistanceTemp, calcOffset(codeByteBuffer, labelWorseDistance)));
-                codeByteBuffer.put(OpCode.BGT_DAT.compile(addrBestDistanceTemp, addrCurrentDistanceTemp, calcOffset(codeByteBuffer, labelBetterDistance)));
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrBestDistanceTemp, addrBestDistance + 3));
-                codeByteBuffer.put(OpCode.AND_DAT.compile(addrBestDistanceTemp, addrAllButTopBitMask));
-                codeByteBuffer.put(OpCode.SET_DAT.compile(addrCurrentDistanceTemp, addrCurrentDistance + 3));
-                codeByteBuffer.put(OpCode.AND_DAT.compile(addrCurrentDistanceTemp, addrAllButTopBitMask));
-                codeByteBuffer.put(OpCode.BLE_DAT.compile(addrBestDistanceTemp, addrCurrentDistanceTemp, calcOffset(codeByteBuffer, labelWorseDistance))); // Note BLE for last long
-                // no need for BGT
-                codeByteBuffer.put(OpCode.JMP_ADR.compile(labelBetterDistance));
-
-                // Not winner
-                labelWorseDistance = codeByteBuffer.position();
+                // If result is -1 then we have a new current winner
+                codeByteBuffer.put(OpCode.BLT_DAT.compile(addrResult, addrZero, calcOffset(codeByteBuffer, labelNewWinner)));
 
                 // Try another transaction
                 codeByteBuffer.put(OpCode.JMP_ADR.compile(labelTxnLoop));
 
                 // New current winner
-                labelBetterDistance = codeByteBuffer.position();
+                labelNewWinner = codeByteBuffer.position();
 
                 // Save new winner address
-                codeByteBuffer.put(OpCode.EXT_FUN.compile(FunctionCode.PUT_ADDRESS_FROM_TX_IN_A_INTO_B));
-                codeByteBuffer.put(OpCode.EXT_FUN_DAT.compile(FunctionCode.GET_B_IND, addrBestAddressPointer));
+                codeByteBuffer.put(OpCode.SET_DAT.compile(addrBestAddress + 0, addrCurrentAddress + 0));
+                codeByteBuffer.put(OpCode.SET_DAT.compile(addrBestAddress + 1, addrCurrentAddress + 1));
+                codeByteBuffer.put(OpCode.SET_DAT.compile(addrBestAddress + 2, addrCurrentAddress + 2));
+                codeByteBuffer.put(OpCode.SET_DAT.compile(addrBestAddress + 3, addrCurrentAddress + 3));
                 // Save new best distance
                 codeByteBuffer.put(OpCode.SET_DAT.compile(addrBestDistance + 0, addrCurrentDistance + 0));
                 codeByteBuffer.put(OpCode.SET_DAT.compile(addrBestDistance + 1, addrCurrentDistance + 1));
@@ -374,10 +278,10 @@ public class Lottery {
                 labelPayout = codeByteBuffer.position();
 
                 // Load B register with winner's address
-                codeByteBuffer.put(OpCode.EXT_FUN_DAT.compile(FunctionCode.SET_B_IND, addrBestAddressPointer));
+                codeByteBuffer.put(OpCode.EXT_FUN_VAL.compile(FunctionCode.SET_B_DAT, addrBestAddress));
                 // Pay AT's balance to receiving address
                 codeByteBuffer.put(OpCode.EXT_FUN.compile(FunctionCode.PAY_ALL_TO_ADDRESS_IN_B));
-                // We're finished forever (finishing auto-refunds remaining balance to AT creator)
+                // We're finished forever
                 codeByteBuffer.put(OpCode.FIN_IMD.compile());
             } catch (CompilationException e) {
                 throw new IllegalStateException("Unable to compile AT?", e);
