@@ -72,6 +72,7 @@ public class Lottery {
         final int addrSleepMinutes = addrCounter++;
         final int addrMinimumAmount = addrCounter++;
 
+        final int addrSleepUntilTimestamp = addrCounter++;
         final int addrSleepUntilHeight = addrCounter++;
 
         final int addrWinningValue = addrCounter; addrCounter += 4;
@@ -113,7 +114,7 @@ public class Lottery {
 
         // Number of data segment bytes from start to include addrCurrentAddress
         dataByteBuffer.position(addrCurrentAddressByteLength * MachineState.VALUE_SIZE);
-        dataByteBuffer.putLong(addrCurrentAddressByteLength);
+        dataByteBuffer.putLong(addrCurrentAddressByteLength * MachineState.VALUE_SIZE);
 
         // PAYMENT transaction type
         dataByteBuffer.position(addrPaymentTxnType * MachineState.VALUE_SIZE);
@@ -128,7 +129,7 @@ public class Lottery {
 
         // Data segment byte length (for SHA256)
         dataByteBuffer.position(addrDataSegmentByteLength * MachineState.VALUE_SIZE);
-        dataByteBuffer.putLong(addrCounter);
+        dataByteBuffer.putLong(addrCounter * MachineState.VALUE_SIZE);
 
         // Code labels
         Integer labelTxnLoop = null;
@@ -164,11 +165,12 @@ public class Lottery {
                  * so we perform a shift-right to extract.
                  */
                 // Save current block 'timestamp' into addrSleepUntilHeight
-                codeByteBuffer.put(OpCode.EXT_FUN_RET.compile(FunctionCode.GET_BLOCK_TIMESTAMP, addrSleepUntilHeight));
-                // Shift-right to convert 'timestamp' to block height
-                codeByteBuffer.put(OpCode.SHR_VAL.compile(addrSleepUntilHeight, 32L));
+                codeByteBuffer.put(OpCode.EXT_FUN_RET.compile(FunctionCode.GET_BLOCK_TIMESTAMP, addrSleepUntilTimestamp));
                 // Add number of minutes to sleep (assuming roughly 1 block per minute)
-                codeByteBuffer.put(OpCode.ADD_DAT.compile(addrSleepUntilHeight, addrSleepMinutes));
+                codeByteBuffer.put(OpCode.EXT_FUN_RET_DAT_2.compile(FunctionCode.ADD_MINUTES_TO_TIMESTAMP, addrSleepUntilTimestamp, addrSleepUntilTimestamp, addrSleepMinutes));
+                // Copy then shift-right to convert 'timestamp' to block height
+                codeByteBuffer.put(OpCode.SET_DAT.compile(addrSleepUntilHeight, addrSleepUntilTimestamp));
+                codeByteBuffer.put(OpCode.SHR_VAL.compile(addrSleepUntilHeight, 32L));
 
                 /* Sleep */
                 codeByteBuffer.put(OpCode.SLP_DAT.compile(addrSleepUntilHeight));
@@ -207,7 +209,7 @@ public class Lottery {
                 codeByteBuffer.put(OpCode.EXT_FUN_RET.compile(FunctionCode.GET_TIMESTAMP_FROM_TX_IN_A, addrLastTxnTimestamp));
 
                 // If transaction is before cut-off timestamp then perform more checks
-                codeByteBuffer.put(OpCode.BLT_DAT.compile(addrLastTxnTimestamp, addrSleepUntilHeight, calcOffset(codeByteBuffer, labelCheckTxn2)));
+                codeByteBuffer.put(OpCode.BLT_DAT.compile(addrLastTxnTimestamp, addrSleepUntilTimestamp, calcOffset(codeByteBuffer, labelCheckTxn2)));
                 // Past cut-off - jump to payout
                 codeByteBuffer.put(OpCode.JMP_ADR.compile(labelPayout == null ? 0 : labelPayout));
 
