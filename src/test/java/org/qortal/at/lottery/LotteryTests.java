@@ -1,14 +1,19 @@
-import jgiven.AbstractLotteryTest;
+package org.qortal.at.lottery;
+
+import org.qortal.at.lottery.jgiven.AbstractLotteryTest;
 import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;
 
 public class LotteryTests extends AbstractLotteryTest {
 
+    private static int DEFAULT_SLEEP_MINUTES = 10;
+    private static long DEFAULT_MINIMUM_AMOUNT = 1_0000_0000L; // 1 QORT
+
     @Test
     public void lottery_should_compile() {
         given()
-                .fresh_lottery(60, 1_0000_0000L);
+                .fresh_lottery(DEFAULT_SLEEP_MINUTES, DEFAULT_MINIMUM_AMOUNT);
 
         then()
                 .creation_bytes_exist();
@@ -17,7 +22,7 @@ public class LotteryTests extends AbstractLotteryTest {
     @Test
     public void lottery_startup() {
         given()
-                .fresh_lottery(10, 1_0000_0000L);
+                .fresh_lottery(DEFAULT_SLEEP_MINUTES, DEFAULT_MINIMUM_AMOUNT);
 
         when()
                 .deploy_lottery()
@@ -30,7 +35,7 @@ public class LotteryTests extends AbstractLotteryTest {
     @Test
     public void lottery_refunds_creator_if_no_entries() {
         given()
-                .fresh_lottery(10, 1_0000_0000L);
+                .fresh_lottery(DEFAULT_SLEEP_MINUTES, DEFAULT_MINIMUM_AMOUNT);
 
         when()
                 .deploy_lottery()
@@ -44,17 +49,15 @@ public class LotteryTests extends AbstractLotteryTest {
 
     @Test
     public void lottery_enforces_minimum_amount() {
-        long minimumAmount = 1_0000_0000L;
-
         given()
-                .fresh_lottery(10, minimumAmount);
+                .fresh_lottery(DEFAULT_SLEEP_MINUTES, DEFAULT_MINIMUM_AMOUNT);
 
         when()
                 .deploy_lottery()
                 .execute_once();
 
         when()
-                .send_payment(minimumAmount / 2) // too little
+                .send_payment(DEFAULT_MINIMUM_AMOUNT / 2) // too little
                 .execute_until_finished();
 
         then()
@@ -65,17 +68,15 @@ public class LotteryTests extends AbstractLotteryTest {
 
     @Test
     public void lottery_chooses_a_winner() {
-        long minimumAmount = 1_0000_0000L;
-
         given()
-                .fresh_lottery(10, minimumAmount);
+                .fresh_lottery(DEFAULT_SLEEP_MINUTES, DEFAULT_MINIMUM_AMOUNT);
 
         when()
                 .deploy_lottery()
                 .execute_once();
 
         when()
-                .send_payment(minimumAmount)
+                .send_payment(DEFAULT_MINIMUM_AMOUNT)
                 .execute_until_finished();
 
         then()
@@ -86,14 +87,12 @@ public class LotteryTests extends AbstractLotteryTest {
 
     @Test
     public void multiple_entries_have_no_advantage() {
-        long minimumAmount = 1_0000_0000L;
-
         int[] winsByPlayerIndex = new int[2];
 
         for (int lotteryCount = 0; lotteryCount < 50; ++lotteryCount) {
             given()
-                    .fresh_lottery(10, minimumAmount)
-                    .quiet_logger();
+                    .quiet_logger()
+                    .fresh_lottery(DEFAULT_SLEEP_MINUTES, DEFAULT_MINIMUM_AMOUNT);
 
             when()
                     .deploy_lottery()
@@ -101,12 +100,12 @@ public class LotteryTests extends AbstractLotteryTest {
 
             // at least one entry by player 0
             when()
-                    .send_payment(0, minimumAmount);
+                    .send_payment(0, DEFAULT_MINIMUM_AMOUNT);
 
             // more entries by player 1 than player 0
             for (int entryCount = 0; entryCount < 10; ++entryCount) {
                 when()
-                        .send_payment(1, minimumAmount);
+                        .send_payment(1, DEFAULT_MINIMUM_AMOUNT);
             }
 
             when()

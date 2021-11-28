@@ -1,11 +1,11 @@
-package jgiven;
+package org.qortal.at.lottery.jgiven;
 
 import com.tngtech.jgiven.Stage;
 import com.tngtech.jgiven.annotation.ExpectedScenarioState;
 import com.tngtech.jgiven.annotation.ProvidedScenarioState;
 import com.tngtech.jgiven.annotation.ScenarioState;
 import org.ciyam.at.API;
-import org.ciyam.at.MachineState;
+import org.ciyam.at.test.ExecutableTest;
 import org.ciyam.at.test.TestAPI;
 
 import java.util.List;
@@ -14,14 +14,11 @@ import java.util.Optional;
 import static org.junit.Assert.*;
 
 public class LotteryThen extends Stage<LotteryThen> {
+    @ExpectedScenarioState
+    ExecutableTest test;
+
     @ExpectedScenarioState(resolution = ScenarioState.Resolution.NAME)
     byte[] creationBytes;
-
-    @ExpectedScenarioState
-    TestAPI api;
-
-    @ExpectedScenarioState
-    MachineState state;
 
     @ExpectedScenarioState
     List<TestAPI.TestAccount> players;
@@ -36,18 +33,18 @@ public class LotteryThen extends Stage<LotteryThen> {
     }
 
     public LotteryThen AT_is_sleeping() {
-        assertTrue(state.isSleeping());
+        assertTrue(test.state.isSleeping());
         return self();
     }
 
     public LotteryThen AT_is_finished() {
-        assertTrue(state.isFinished());
+        assertTrue(test.state.isFinished());
         return self();
     }
 
     public LotteryThen AT_sent_a_payment() {
         // Find AT PAYMENT
-        Optional<TestAPI.TestTransaction> maybeTransaction = api.atTransactions.stream()
+        Optional<TestAPI.TestTransaction> maybeTransaction = test.api.atTransactions.stream()
                 .filter(transaction ->
                         transaction.txType.equals(API.ATTransactionType.PAYMENT) &&
                                 transaction.sender.equals(TestAPI.AT_ADDRESS))

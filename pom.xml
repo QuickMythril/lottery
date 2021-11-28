@@ -14,6 +14,7 @@
         <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.0.0-M4</maven-surefire-plugin.version>
         <ciyam-at.version>1.4.0</ciyam-at.version>
+        <qortal.version>2.0.0</qortal.version>
         <jgiven.version>1.1.0</jgiven.version>
 
         <commons-text.version>1.8</commons-text.version>
@@ -191,6 +192,12 @@
             <type>test-jar</type>
             <version>${ciyam-at.version}</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.qortal</groupId>
+            <artifactId>qortal</artifactId>
+            <version>${qortal.version}</version>
+            <scope>compile</scope>
         </dependency>
         <!-- Maven SureFire & JUnit for testing -->
         <dependency>

@@ -1,10 +1,11 @@
-package jgiven;
+package org.qortal.at.lottery.jgiven;
 
 import com.tngtech.jgiven.Stage;
 import com.tngtech.jgiven.annotation.As;
 import com.tngtech.jgiven.annotation.ProvidedScenarioState;
 import com.tngtech.jgiven.annotation.ScenarioState;
 import org.ciyam.at.AtLoggerFactory;
+import org.ciyam.at.test.ExecutableTest;
 import org.ciyam.at.test.QuietTestLoggerFactory;
 import org.ciyam.at.test.TestAPI;
 import org.ciyam.at.test.TestLoggerFactory;
@@ -15,7 +16,7 @@ import java.util.List;
 
 public class LotteryGiven extends Stage<LotteryGiven> {
     @ProvidedScenarioState
-    TestAPI api;
+    ExecutableTest test;
 
     @ProvidedScenarioState(resolution = ScenarioState.Resolution.NAME)
     byte[] creationBytes;
@@ -28,7 +29,10 @@ public class LotteryGiven extends Stage<LotteryGiven> {
 
     @As("fresh lottery ($1 minute sleep, $2 minimum amount)")
     public LotteryGiven fresh_lottery(int sleepMinutes, @QortAmount long minimumAmount) {
-        api = new TestAPI(); // new blockchain
+        test = new ExecutableTest();
+        test.loggerFactory = loggerFactory;
+        test.api = new TestAPI(); // new blockchain
+
         creationBytes = Lottery.buildQortalAT(sleepMinutes, minimumAmount);
 
         // Create several potential players
@@ -37,7 +41,7 @@ public class LotteryGiven extends Stage<LotteryGiven> {
         for (int i = 0; i < 20; ++i) {
             String address = String.format("Q_player_%02d", i);
             TestAPI.TestAccount player = new TestAPI.TestAccount(address, 100_0000_0000L);
-            player.addToMap(api.accounts);
+            player.addToMap(test.api.accounts);
             players.add(player);
         }
 
