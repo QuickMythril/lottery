@@ -23,4 +23,4 @@ Creation bytes can be passed to `qort-tx` script as part of a `DEPLOY-AT` transa
 So using example above, front-loading lottery with 100.0 QORT (which also covers AT fees):\
     `description="lottery test: payout in 2 weeks, send minimum 0.1 QORT to enter"`\
     `creation_bytes=$(java -cp 'target/qortal-lottery-1.0.0.jar:target/dependency/*' org.qortal.at.lottery.Lottery 20160 0.1 | tail +2)`\
-    `qort-tx DEPLOY_AT private-key-in-base58 'lottery-test' "$description" 'lottery' 'lottery' $creation_bytes 100.0`
+    `qort-tx -s -p DEPLOY_AT private-key-in-base58 'lottery-test' "$description" 'lottery' 'lottery' $creation_bytes 100.0`
