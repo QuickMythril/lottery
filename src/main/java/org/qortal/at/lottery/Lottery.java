@@ -1,7 +1,9 @@
 package org.qortal.at.lottery;
 
 import org.ciyam.at.*;
+import org.qortal.utils.Base58;
 
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 
 import static org.ciyam.at.OpCode.calcOffset;
@@ -303,4 +305,44 @@ public class Lottery {
         return MachineState.toCreationBytes(ciyamAtVersion, codeBytes, dataByteBuffer.array(), numCallStackPages, numUserStackPages, minActivationAmount);
     }
 
+
+    private static void usage() {
+        System.err.println("usage: lottery <timeout-minutes> <minimum-entry-amount>");
+        System.err.println("example: lottery 20160 1.0");
+        System.err.println("         payout in 20160 mins (~2 weeks), minimum entry 1.0 QORT");
+    }
+
+    public static void main(String[] args) {
+        if (args.length != 2) {
+            usage();
+            System.exit(2);
+        }
+
+        int sleepMinutes;
+        try {
+            sleepMinutes = Integer.parseInt(args[0]);
+        } catch (NumberFormatException e) {
+            usage();
+            System.err.println();
+            System.err.printf("Entry timeout minutes '%s' invalid - should be integer larger than 10", args[0]);
+            System.exit(1);
+            // not reached
+            throw e;
+        }
+
+        long minimumAmount;
+        try {
+            minimumAmount = new BigDecimal(args[1]).setScale(8).unscaledValue().longValue();
+        } catch (NumberFormatException e) {
+            usage();
+            System.err.println();
+            System.err.printf("Minimum entry amount '%s' invalid - should be larger than 0.1 QORT", args[1]);
+            System.exit(1);
+            // not reached
+            throw e;
+        }
+
+        byte[] creationBytes = buildQortalAT(sleepMinutes, minimumAmount);
+        System.out.printf("Creation bytes:\n%s\n", Base58.encode(creationBytes));
+    }
 }
