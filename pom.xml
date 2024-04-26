@@ -4,26 +4,20 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.qortal</groupId>
     <artifactId>qortal-lottery</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>jar</packaging>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <skipTests>true</skipTests>
 
-        <bouncycastle.version>1.64</bouncycastle.version>
         <build.timestamp>${maven.build.timestamp}</build.timestamp>
-        <ciyam-at.version>1.4.0</ciyam-at.version>
-        <commons-text.version>1.8</commons-text.version>
-        <commons-io.version>2.6</commons-io.version>
-        <commons-compress.version>1.21</commons-compress.version>
-        <guava.version>28.1-jre</guava.version>
-        <jgiven.version>1.1.0</jgiven.version>
-        <junit.version>4.13</junit.version>
-        <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
-        <maven-surefire-plugin.version>3.0.0-M4</maven-surefire-plugin.version>
-        <package-info-maven-plugin.version>1.1.0</package-info-maven-plugin.version>
-        <qortal.version>2.0.0</qortal.version>
+        <ciyam-at.version>1.4.2</ciyam-at.version>
+        <jgiven.version>1.3.1</jgiven.version>
+        <junit.version>4.13.2</junit.version>
+        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
+        <qortal.version>4.5.2</qortal.version>
     </properties>
 
     <build>
