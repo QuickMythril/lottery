@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.qortal</groupId>
@@ -8,21 +9,21 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <build.timestamp>${maven.build.timestamp}</build.timestamp>
         <skipTests>true</skipTests>
 
-        <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
-        <maven-surefire-plugin.version>3.0.0-M4</maven-surefire-plugin.version>
+        <bouncycastle.version>1.64</bouncycastle.version>
+        <build.timestamp>${maven.build.timestamp}</build.timestamp>
         <ciyam-at.version>1.4.0</ciyam-at.version>
-        <qortal.version>2.0.0</qortal.version>
-        <jgiven.version>1.1.0</jgiven.version>
-
         <commons-text.version>1.8</commons-text.version>
         <commons-io.version>2.6</commons-io.version>
         <commons-compress.version>1.21</commons-compress.version>
         <guava.version>28.1-jre</guava.version>
+        <jgiven.version>1.1.0</jgiven.version>
+        <junit.version>4.13</junit.version>
+        <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.0.0-M4</maven-surefire-plugin.version>
         <package-info-maven-plugin.version>1.1.0</package-info-maven-plugin.version>
-        <bouncycastle.version>1.64</bouncycastle.version>
+        <qortal.version>2.0.0</qortal.version>
     </properties>
 
     <build>
@@ -35,14 +36,6 @@
             </resource>
         </resources>
         <plugins>
-<!--            <plugin>-->
-<!--                <groupId>org.codehaus.mojo</groupId>-->
-<!--                <artifactId>versions-maven-plugin</artifactId>-->
-<!--                <version>2.5</version>-->
-<!--                <configuration>-->
-<!--                    <generateBackupPoms>false</generateBackupPoms>-->
-<!--                </configuration>-->
-<!--            </plugin>-->
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
@@ -51,99 +44,6 @@
                     <target>11</target>
                 </configuration>
             </plugin>
-<!--            <plugin>-->
-<!--                <groupId>pl.project13.maven</groupId>-->
-<!--                <artifactId>git-commit-id-plugin</artifactId>-->
-<!--                <version>4.0.0</version>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <id>get-the-git-infos</id>-->
-<!--                        <goals>-->
-<!--                            <goal>revision</goal>-->
-<!--                        </goals>-->
-<!--                        <phase>initialize</phase>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--                <configuration>-->
-<!--                    <generateGitPropertiesFile>true</generateGitPropertiesFile>-->
-<!--                    <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>-->
-<!--                    <includeOnlyProperties>-->
-<!--                        <includeOnlyProperty>^git.commit.time$</includeOnlyProperty>-->
-<!--                        <includeOnlyProperty>^git.commit.id.(abbrev|full)$</includeOnlyProperty>-->
-<!--                    </includeOnlyProperties>-->
-<!--                    <dateFormat>yyyyMMddHHmmss</dateFormat>-->
-<!--                    <dateFormatTimeZone>UTC</dateFormatTimeZone>-->
-<!--                    <gitDescribe>-->
-<!--                        <dirty>-devel</dirty>-->
-<!--                    </gitDescribe>-->
-<!--                    <commitIdGenerationMode>full</commitIdGenerationMode>-->
-<!--                    <injectAllReactorProjects>true</injectAllReactorProjects>-->
-<!--                    <offline>true</offline>-->
-<!--                    <skipPoms>false</skipPoms>-->
-<!--                </configuration>-->
-<!--            </plugin>-->
-
-<!--            <plugin>-->
-<!--                <groupId>com.google.code.maven-replacer-plugin</groupId>-->
-<!--                <artifactId>replacer</artifactId>-->
-<!--                <version>1.5.3</version>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <id>replace-git-resources</id>-->
-<!--                        <phase>generate-resources</phase>-->
-<!--                        <goals>-->
-<!--                            <goal>replace</goal>-->
-<!--                        </goals>-->
-<!--                        <inherited>false</inherited>-->
-<!--                        <configuration>-->
-<!--                            <file>${project.build.outputDirectory}/git.properties</file>-->
-<!--                            <regex>true</regex>-->
-<!--                            <regexFlags><regexFlag>MULTILINE</regexFlag></regexFlags>-->
-<!--                            <replacements>-->
-<!--                                <replacement>-->
-<!--                                    <token>^(#.*$[\n\r]*)</token>-->
-<!--                                    <value></value>-->
-<!--                                </replacement>-->
-<!--                            </replacements>-->
-<!--                        </configuration>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--            </plugin>-->
-<!--            <plugin>-->
-<!--                <groupId>org.apache.maven.plugins</groupId>-->
-<!--                <artifactId>maven-jar-plugin</artifactId>-->
-<!--                <version>3.2.0</version>-->
-<!--                <configuration>-->
-<!--                    <archive>-->
-<!--                        <manifest>-->
-<!--                            <addDefaultEntries>false</addDefaultEntries>-->
-<!--                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>-->
-<!--                        </manifest>-->
-<!--                        <manifestEntries>-->
-<!--                            <Last-Commit-Id>${git.commit.id.full}</Last-Commit-Id>-->
-<!--                            <Last-Commit-Time>${git.commit.time}</Last-Commit-Time>-->
-<!--                            <Reproducible-Build>true</Reproducible-Build>-->
-<!--                        </manifestEntries>-->
-<!--                    </archive>-->
-<!--                </configuration>-->
-<!--            </plugin>-->
-<!--            <plugin>-->
-<!--                <groupId>io.github.zlika</groupId>-->
-<!--                <artifactId>reproducible-build-maven-plugin</artifactId>-->
-<!--                <version>0.11</version>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <phase>package</phase>-->
-<!--                        <id>strip-jar</id>-->
-<!--                        <goals>-->
-<!--                            <goal>strip-jar</goal>-->
-<!--                        </goals>-->
-<!--                        <configuration>-->
-<!--                            <zipDateTime>${git.commit.time}</zipDateTime>-->
-<!--                        </configuration>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--            </plugin>-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -164,20 +64,6 @@
     </repositories>
 
     <dependencies>
-<!--        &lt;!&ndash; https://mvnrepository.com/artifact/org.codehaus.mojo/build-helper-maven-plugin &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>org.codehaus.mojo</groupId>-->
-<!--            <artifactId>build-helper-maven-plugin</artifactId>-->
-<!--            <version>3.0.0</version>-->
-<!--            <scope>compile</scope>&lt;!&ndash; needed for build, not for runtime &ndash;&gt;-->
-<!--        </dependency>-->
-<!--        &lt;!&ndash; https://mvnrepository.com/artifact/com.github.bohnman/package-info-maven-plugin &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>com.github.bohnman</groupId>-->
-<!--            <artifactId>package-info-maven-plugin</artifactId>-->
-<!--            <version>${package-info-maven-plugin.version}</version>-->
-<!--            <scope>compile</scope>&lt;!&ndash; needed for build, not for runtime &ndash;&gt;-->
-<!--        </dependency>-->
         <!-- CIYAM AT (automated transactions) -->
         <dependency>
             <groupId>org.ciyam</groupId>
@@ -209,7 +95,7 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.13</version>
+            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
         <!-- JGiven for testing -->
@@ -219,47 +105,5 @@
             <version>${jgiven.version}</version>
             <scope>test</scope>
         </dependency>
-        <!-- Utilities -->
-<!--        <dependency>-->
-<!--            <groupId>com.googlecode.json-simple</groupId>-->
-<!--            <artifactId>json-simple</artifactId>-->
-<!--            <version>1.1.1</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.json</groupId>-->
-<!--            <artifactId>json</artifactId>-->
-<!--            <version>20210307</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.commons</groupId>-->
-<!--            <artifactId>commons-text</artifactId>-->
-<!--            <version>${commons-text.version}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>commons-io</groupId>-->
-<!--            <artifactId>commons-io</artifactId>-->
-<!--            <version>${commons-io.version}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.commons</groupId>-->
-<!--            <artifactId>commons-compress</artifactId>-->
-<!--            <version>${commons-compress.version}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>com.google.guava</groupId>-->
-<!--            <artifactId>guava</artifactId>-->
-<!--            <version>${guava.version}</version>-->
-<!--        </dependency>-->
-<!--        &lt;!&ndash; BouncyCastle for crypto, including TLS secure networking &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>org.bouncycastle</groupId>-->
-<!--            <artifactId>bcprov-jdk15on</artifactId>-->
-<!--            <version>${bouncycastle.version}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.bouncycastle</groupId>-->
-<!--            <artifactId>bctls-jdk15on</artifactId>-->
-<!--            <version>${bouncycastle.version}</version>-->
-<!--        </dependency>-->
     </dependencies>
 </project>
